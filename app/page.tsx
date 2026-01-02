@@ -124,7 +124,7 @@ export default function Home() {
                 <div className="mt-4 text-sm text-gray-600 dark:text-gray-400">
                   <p>Market Cap: {marketCap} Million JPY</p>
                   <p>Revenue: {sales} Million JPY</p>
-                </div>
+                  </div>
               </div>
             )}
           </div>
