@@ -6,6 +6,70 @@ import YahooFinance from 'yahoo-finance2';
  * Fetches financial data from Yahoo Finance for Japanese stocks
  */
 
+// Type definitions for Yahoo Finance response
+// These are minimal interfaces for the data we actually use
+interface YFPrice {
+  longName?: string;
+  shortName?: string;
+  regularMarketPrice?: number;
+  currentPrice?: number;
+  marketCap?: number;
+  regularMarketTime?: string;
+}
+
+interface YFFinancialData {
+  totalRevenue?: number;
+  ebitda?: number;
+  operatingMargins?: number;
+  freeCashflow?: number;
+  totalCash?: number;
+  currentRatio?: number;
+  debtToEquity?: number;
+}
+
+interface YFSummaryDetail {
+  marketCap?: number;
+  regularMarketPrice?: number;
+  dividendRate?: number;
+  trailingAnnualDividendRate?: number;
+}
+
+interface YFDefaultKeyStats {
+  netIncomeToCommon?: number;
+  bookValue?: number;
+  sharesOutstanding?: number;
+  lastFiscalYearEnd?: string;
+  mostRecentQuarter?: string;
+}
+
+interface YFIncomeStatement {
+  endDate?: string;
+  totalRevenue?: number;
+  netIncome?: number;
+  operatingIncome?: number;
+}
+
+interface YFIncomeStatementHistory {
+  incomeStatementHistory?: YFIncomeStatement[];
+}
+
+interface YFCashflowStatement {
+  netIncome?: number;
+}
+
+interface YFCashflowStatementHistory {
+  cashflowStatements?: YFCashflowStatement[];
+}
+
+interface YFQuoteSummary {
+  price?: YFPrice;
+  financialData?: YFFinancialData;
+  summaryDetail?: YFSummaryDetail;
+  defaultKeyStatistics?: YFDefaultKeyStats;
+  incomeStatementHistory?: YFIncomeStatementHistory;
+  cashflowStatementHistory?: YFCashflowStatementHistory;
+}
+
 // Initialize YahooFinance instance
 const yahooFinance = new YahooFinance();
 
@@ -22,7 +86,7 @@ export async function GET(
     const symbol = `${securitiesCode}.T`;
 
     // Fetch company data - use single quoteSummary call
-    const quoteSummary = await yahooFinance.quoteSummary(symbol, {
+    const quoteSummaryRaw = await yahooFinance.quoteSummary(symbol, {
       modules: [
         'price',
         'summaryDetail',
@@ -34,8 +98,8 @@ export async function GET(
       ]
     });
 
-    // Type assertion for Yahoo Finance response
-    const quoteData = quoteSummary as any;
+    // Type-safe assertion for Yahoo Finance response
+    const quoteData = quoteSummaryRaw as unknown as YFQuoteSummary;
     const priceInfo = quoteData?.price || {};
 
     console.log('Found company:', priceInfo.longName || priceInfo.shortName);
@@ -81,7 +145,7 @@ export async function GET(
 /**
  * Extract and format financial data from Yahoo Finance response
  */
-function extractFinancialData(quoteSummary: any) {
+function extractFinancialData(quoteSummary: YFQuoteSummary) {
   const financialData = quoteSummary?.financialData || {};
   const summaryDetail = quoteSummary?.summaryDetail || {};
   const defaultKeyStats = quoteSummary?.defaultKeyStatistics || {};
@@ -93,10 +157,10 @@ function extractFinancialData(quoteSummary: any) {
   const cashflow = quoteSummary?.cashflowStatementHistory?.cashflowStatements?.[0];
 
   // Helper function to safely convert to string
-  const toStr = (value: any) => value != null && value !== 0 ? String(value) : '0';
+  const toStr = (value: number | undefined | null) => value != null && value !== 0 ? String(value) : '0';
 
   // Helper function to convert to millions (百万円)
-  const toMillions = (value: any) => {
+  const toMillions = (value: number | undefined | null) => {
     if (value == null || value === 0) return '0';
     return String(Math.round(value / 1000000));
   };
@@ -111,14 +175,14 @@ function extractFinancialData(quoteSummary: any) {
 
   // Get historical revenue data
   console.log('Income statements count:', incomeStatements.length);
-  incomeStatements.forEach((stmt: any, idx: number) => {
+  incomeStatements.forEach((stmt, idx) => {
     console.log(`Statement ${idx}:`, stmt.endDate, 'Revenue:', stmt.totalRevenue);
   });
 
   // Filter out quarterly data (identify by comparing with current year)
   // Quarterly data is typically much smaller than annual data
   const currentRevenue = financialData.totalRevenue || incomeStatement?.totalRevenue || 0;
-  const annualStatements = incomeStatements.filter((stmt: any) => {
+  const annualStatements = incomeStatements.filter((stmt) => {
     // Consider it annual data if revenue is at least 50% of current annual revenue
     return stmt.totalRevenue && stmt.totalRevenue > currentRevenue * 0.5;
   });
@@ -154,11 +218,11 @@ function extractFinancialData(quoteSummary: any) {
     // Profitability metrics (in millions JPY)
     netIncome: toMillions(defaultKeyStats?.netIncomeToCommon || cashflow?.netIncome || incomeStatement?.netIncome),
     equity: toMillions(equity),
-    totalAssets: toMillions(equity * (financialData.debtToEquity / 100 + 1)), // Estimate from D/E ratio
+    totalAssets: toMillions(equity * ((financialData.debtToEquity || 0) / 100 + 1)), // Estimate from D/E ratio
     operatingIncome: toMillions(financialData.ebitda || incomeStatement?.operatingIncome),
 
     // Safety metrics (in millions JPY)
-    currentAssets: toMillions(financialData.totalCash * financialData.currentRatio || 0),
+    currentAssets: toMillions((financialData.totalCash || 0) * (financialData.currentRatio || 0)),
     currentLiabilities: toMillions(financialData.totalCash || 0),
 
     // Valuation metrics (stock price and dividend are in JPY, not millions)
