@@ -91,6 +91,11 @@ export default function CompanySearch() {
             type="text"
             value={securitiesCode}
             onChange={(e) => setSecuritiesCode(e.target.value.replace(/\D/g, '').slice(0, 4))}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && securitiesCode.length === 4 && !loading) {
+                handleFetchData();
+              }
+            }}
             placeholder="例：7203（トヨタ）"
             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
             disabled={loading}
