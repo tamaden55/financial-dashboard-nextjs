@@ -60,8 +60,8 @@
 1. リポジトリをクローン
 
 ```bash
-git clone https://github.com/tamaden55/nextjs-dashboard.git
-cd nextjs-dashboard
+git clone https://github.com/tamaden55/financial-dashboard-nextjs.git
+cd financial-dashboard-nextjs
 ```
 
 2. 依存関係をインストール
@@ -90,7 +90,7 @@ http://localhost:3000 にアクセス
 ## ファイル構造
 
 ```
-nextjs-dashboard/
+financial-dashboard-nextjs/
 ├── app/
 │   ├── api/
 │   │   └── edinet/[code]/
